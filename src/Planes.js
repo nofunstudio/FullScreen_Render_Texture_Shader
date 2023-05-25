@@ -2,18 +2,18 @@ import { useTexture, useVideoTexture, Plane } from '@react-three/drei'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { vertexShader, fragmentShader } from './PlaneShader'
 
-export const Planes = ({ url }) => {
+export const Planes = () => {
   const [centered, setCentered] = useState(false)
-  const { size } = useThree() // access viewport size
-  const videoRef = useRef(url)
-  const texture = useVideoTexture(url)
+  const { size, mouse } = useThree() // access viewport size
+  const urls = ['Cyberpad_x.mp4', 'JoyBlaster_3000.mp4', 'Megadome.mp4', 'Powerbase_Ultra.mp4']
+  const textures = urls.map((url) => useVideoTexture(url))
   const noiseTexture = useTexture('noise.jpg')
-  const videoHeight = texture.video?.videoHeight
-  const videoWidth = texture.video?.videoWidth
-  const textureAspect = texture.video ? videoWidth / videoHeight : 1
+  const videoHeight = textures[0].video?.videoHeight
+  const videoWidth = textures[0].video?.videoWidth
+  const textureAspect = textures[0].video ? videoWidth / videoHeight : 1
 
   const gap = { x: 2.0, y: 2.0 } // constant gap size
 
@@ -54,7 +54,7 @@ export const Planes = ({ url }) => {
 
   // calc uv scale for covered texture
   const uvScale = useMemo(() => {
-    const textureAspect = texture.video ? videoWidth / videoHeight : 1
+    const textureAspect = textures[0].video ? videoWidth / videoHeight : 1
     const aspect = (maxAmount.x * planeSize.width) / (maxAmount.y * planeSize.height)
     const ratio = aspect / textureAspect
     const [x, y] = aspect < textureAspect ? [ratio, 1] : [1, 1 / ratio]
@@ -69,26 +69,42 @@ export const Planes = ({ url }) => {
           maxAmount={new THREE.Vector2(maxAmount.x, maxAmount.y)}
           planeSize={planeSize}
           zIndex={i * 10}
-          texture={texture}
+          textures={textures}
           noiseTexture={noiseTexture}
           uvScale={uvScale}
           data={data}
           centered={centered}
           setCentered={setCentered}
+          mouse={mouse}
+          size={size}
         />
       ))}
     </group>
   )
 }
 
-const FragmentPlane = ({ noiseTexture, zIndex, maxAmount, planeSize, uvScale, texture, data, centered, setCentered, ...props }) => {
+const FragmentPlane = ({
+  noiseTexture,
+  size,
+  zIndex,
+  maxAmount,
+  planeSize,
+  uvScale,
+  textures,
+  data,
+  centered,
+  setCentered,
+  mouse,
+  ...props
+}) => {
   const meshRef = useRef()
   const [isHovered, setIsHovered] = useState(false)
   const initialPos = useRef(data.position)
-  const { size } = useThree()
+
   const aspectRatio = size.width / size.height
   const shaderRef = useRef()
-
+  const [quad, setQuad] = useState(1)
+  const [quadStore, setQuadStore] = useState(1)
   const shader = {
     uniforms: {
       dispFactor: { value: 0 },
@@ -96,7 +112,7 @@ const FragmentPlane = ({ noiseTexture, zIndex, maxAmount, planeSize, uvScale, te
       u_transitionShader: { value: centered ? 0 : 1 },
       u_amounts: { value: maxAmount },
       disp: { value: noiseTexture },
-      u_texture: { value: texture },
+      u_texture: { value: textures[0] },
       u_uvScale: { value: uvScale },
       u_absoluteUv: { value: data.uv },
       u_aspectRatio: { value: aspectRatio }, // Pass the aspect ratio as a uniform
@@ -104,57 +120,127 @@ const FragmentPlane = ({ noiseTexture, zIndex, maxAmount, planeSize, uvScale, te
     vertexShader: vertexShader,
     fragmentShader: fragmentShader,
   }
+  const SCALE_DURATION = 0.9
+  const DISPFACTOR_HOVERED = 0.5
+  const DISPFACTOR_NOT_HOVERED = 0.9
+  const DISPFACTOR_DURATION_HOVERED = 0.9
+  const DISPFACTOR_DURATION_NOT_HOVERED = 0.5
+  // useState called Quad
+
   useEffect(() => {
+    shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
     const anim = gsap.fromTo(
       meshRef.current.position,
-
       {
         x: centered ? initialPos.current.x : 0,
         y: centered ? initialPos.current.y : 0,
-        z: centered ? initialPos.current.z : zIndex, // set z offset when not centered
-        duration: 0.8,
+        z: centered ? initialPos.current.z : zIndex,
+        duration: SCALE_DURATION,
       },
       {
         x: centered ? 0 : initialPos.current.x,
         y: centered ? 0 : initialPos.current.y,
-        z: centered ? zIndex : initialPos.current.z, // set z offset when centered
-        duration: 0.8,
+        z: centered ? zIndex : initialPos.current.z,
+        duration: SCALE_DURATION,
+        onComplete: () => {},
       },
     )
 
-    // Clean up GSAP animation when component unmounts or when centered state changes
     return () => {
       anim.kill()
     }
   }, [centered, setCentered])
 
   useEffect(() => {
-    if (isHovered && !centered) {
-      gsap.to(meshRef.current.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.9 })
-
-      gsap.to(shaderRef.current.uniforms.dispFactor, { value: 0.9, duration: 0.9, ease: 'power2.out' })
-      // gsap.to(shaderRef.current.uniforms.u_time, { value: 3.0, duration: 8.0 })
+    const anim2 = gsap.fromTo(
+      shaderRef.current.uniforms.dispFactor,
+      {
+        value: isHovered ? 0 : 0.5,
+        duration: SCALE_DURATION,
+        onComplete: () => {
+          shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
+        },
+      },
+      {
+        value: isHovered ? 0.5 : 0,
+        duration: SCALE_DURATION,
+      },
+    )
+    gsap.to(shaderRef.current.uniforms.u_time, { value: 1.0, duration: 3.0 })
+    return () => {
+      anim2.kill()
     }
-  }, [isHovered, centered])
+  }, [isHovered])
+
+  useFrame(() => {
+    if (!centered) {
+      if (mouse.x < 0) {
+        if (mouse.y < 0) {
+          //1 top right
+          setQuad(1)
+        } else {
+          // 3 bottom left
+          setQuad(3)
+        }
+      } else {
+        if (mouse.y < 0) {
+          //2 top left
+          setQuad(2)
+        } else {
+          // 4 bottom right
+          setQuad(4)
+        }
+      }
+    }
+  }, [mouse])
 
   useEffect(() => {
-    if (centered || !isHovered) {
-      shaderRef.current.uniforms.dispFactor.value = 0.9
-      gsap.to(shaderRef.current.uniforms.dispFactor, { value: 0.0, duration: 0.9, ease: 'power2.out' })
+    //console.log(quad)
+    if (!centered) {
+      gsap.fromTo(
+        shaderRef.current.uniforms.dispFactor,
+        {
+          value: 1.5,
+          duration: 1.9,
+          ease: 'power2.out',
+          onProgress: () => {
+            shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
+          },
+        },
+        {
+          value: 0.0,
+          duration: 1.5,
+          ease: 'power2.out',
+        },
+      )
     }
-  }, [isHovered, centered])
+  }, [quad])
 
   return (
-    <Plane
-      ref={meshRef}
-      args={[planeSize.width, planeSize.height]}
-      position={data.position}
-      onClick={() => {
-        setCentered(!centered)
-      }}
-      onPointerOver={() => setIsHovered(true)}
-      onPointerOut={() => setIsHovered(false)}>
-      <shaderMaterial ref={shaderRef} args={[shader]} side={THREE.DoubleSide} />
-    </Plane>
+    <>
+      <Plane
+        ref={meshRef}
+        args={[planeSize.width, planeSize.height]}
+        position={data.position}
+        onClick={(e) => {
+          e.stopPropagation()
+          setQuadStore(quad)
+          setCentered(!centered)
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          if (!centered) {
+            setIsHovered(true)
+          }
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation()
+          if (!centered) {
+            setIsHovered(false)
+          }
+        }}>
+        <shaderMaterial ref={shaderRef} args={[shader]} side={THREE.DoubleSide} />
+      </Plane>
+    </>
   )
 }

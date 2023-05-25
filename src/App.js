@@ -12,12 +12,12 @@ import { VideoMaskShader } from './VideoMaskShader'
 export function RenderTexSetup() {
   const renderTexRef = useRef()
   const shaderRef = useRef()
-  const viewport = useThree((state) => state.viewport)
+  const { viewport } = useThree()
 
   useFrame((state, delta) => {
     shaderRef.current.t = renderTexRef.current
     //shaderRef.current.progressDistortion = state.mouse.y / 2
-    shaderRef.current.time += delta * 0.3
+    //shaderRef.current.time += delta * 0.3
   })
 
   return (
@@ -27,12 +27,12 @@ export function RenderTexSetup() {
         <color attach="background" args={['black']} />
         <OrbitControls />
         <ambientLight intensity={0.5} />
-        <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+        {/* <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
           <group scale={1}>
             <VideoMask position={[0, 0, -100]} scale={1} opacityProp={0.1} />
           </group>
-        </Billboard>
-        <Planes url="11.mp4" />
+        </Billboard> */}
+        <Planes />
         {/* <VideoMaskStack /> */}
       </RenderTexture>
       <mesh scale={[viewport.width, viewport.height, 1]}>
