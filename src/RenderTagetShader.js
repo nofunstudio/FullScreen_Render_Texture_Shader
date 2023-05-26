@@ -37,9 +37,10 @@ void main() {
     p += 0.1 * cos(scale * 5.0 * p.yx + 2.6 * time + vec2(4.2, 1.4));
     p += 0.3 * cos(scale * 7.0 * p.yx + 3.6 * time + vec2(10.2, 3.4));
 	}
+  
 
     newUV2.x = mix(vUv.x, length(p), progressDistortion);
-    newUV2.y = mix(vUv.y, 0.0, progressDistortion);
+    newUV2.y = mix(vUv.y, length(p), progressDistortion);
     vec3 textureColor = texture2D(t, newUV2).rgb;
     vec4 color = vec4(textureColor, 1.0);
 	gl_FragColor = color;

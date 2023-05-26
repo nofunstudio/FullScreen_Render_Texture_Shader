@@ -20,8 +20,8 @@ export const Planes = () => {
   // Calculate the maximum number of planes that can fit in the viewport
   const maxAmount = useMemo(() => {
     return {
-      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 4),
-      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 4),
+      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 6),
+      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 6),
     }
   }, [size, gap, textureAspect])
 
@@ -62,7 +62,7 @@ export const Planes = () => {
   }, [maxAmount, planeSize, textureAspect, videoHeight, videoWidth])
 
   return (
-    <group>
+    <group scale={[0.1, 0.1, 0.1]}>
       {datas.map((data, i) => (
         <FragmentPlane
           key={i}
@@ -101,7 +101,8 @@ const FragmentPlane = ({
   const [isHovered, setIsHovered] = useState(false)
   const initialPos = useRef(data.position)
 
-  const aspectRatio = size.width / size.height
+  //const aspectRatio = new THREE.Vector2(size.width, size.height)
+  const aspectRatio = 16 / 9
   const shaderRef = useRef()
   const [quad, setQuad] = useState(1)
   const [quadStore, setQuadStore] = useState(1)
@@ -110,6 +111,7 @@ const FragmentPlane = ({
       dispFactor: { value: 0 },
       u_time: { value: 0 },
       u_transitionShader: { value: centered ? 0 : 1 },
+      mixFactor: { value: 0 },
       u_amounts: { value: maxAmount },
       disp: { value: noiseTexture },
       u_texture: { value: textures[0] },
