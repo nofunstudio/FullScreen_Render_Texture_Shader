@@ -69,14 +69,14 @@ void main() {
   
   vec4 texGrid = texture2D(u_texture, mixUV);
 
-  
   if(u_transitionShader < 1.0){
-    //float grayscale = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
-      //float tolerance = 0.01;
-      
-        gl_FragColor = vec4(tex.rgb, 1.0 );
-      
+    if (length(tex.rgb) < 0.1) {
+        discard;
+    } else {
+        gl_FragColor = vec4(tex.rgb, 1.0);
     }
+}
+
     
     
     if(u_transitionShader > 0.9){

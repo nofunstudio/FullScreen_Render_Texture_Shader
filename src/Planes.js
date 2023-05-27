@@ -14,14 +14,15 @@ export const Planes = () => {
   const videoHeight = textures[0].video?.videoHeight
   const videoWidth = textures[0].video?.videoWidth
   const textureAspect = textures[0].video ? videoWidth / videoHeight : 1
+  const scaleRef = useRef()
 
   const gap = { x: 2.0, y: 2.0 } // constant gap size
 
   // Calculate the maximum number of planes that can fit in the viewport
   const maxAmount = useMemo(() => {
     return {
-      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 6),
-      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 6),
+      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 4),
+      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 4),
     }
   }, [size, gap, textureAspect])
 
@@ -61,24 +62,64 @@ export const Planes = () => {
     return new THREE.Vector2(x, y)
   }, [maxAmount, planeSize, textureAspect, videoHeight, videoWidth])
 
+  useEffect(() => {
+    if (centered) {
+      let tl = gsap.timeline({ repeat: -1 })
+      let rotationDuration = 12
+      let scaleDuration = 0.5
+      let scaleDelay = rotationDuration * 0.3 // Changed from 0.25 to 0.3 to delay the start of the scaling to 30% of the rotation
+
+      tl.to(scaleRef.current.rotation, {
+        y: Math.PI * -2,
+        duration: rotationDuration,
+        ease: 'power2.inOut',
+      })
+
+      tl.to(
+        scaleRef.current.scale,
+        {
+          x: 0.1,
+          y: 0.1,
+          z: 0.25,
+          duration: scaleDuration,
+          ease: 'power2.inOut',
+          yoyo: true,
+          repeat: 1,
+        },
+        scaleDelay,
+      )
+
+      tl.set(
+        scaleRef.current.scale,
+        {
+          x: 0.1,
+          y: 0.1,
+          z: 0.1,
+        },
+        scaleDelay + scaleDuration * 2,
+      )
+    }
+  }, [centered])
   return (
-    <group scale={[0.1, 0.1, 0.1]}>
-      {datas.map((data, i) => (
-        <FragmentPlane
-          key={i}
-          maxAmount={new THREE.Vector2(maxAmount.x, maxAmount.y)}
-          planeSize={planeSize}
-          zIndex={i * 10}
-          textures={textures}
-          noiseTexture={noiseTexture}
-          uvScale={uvScale}
-          data={data}
-          centered={centered}
-          setCentered={setCentered}
-          mouse={mouse}
-          size={size}
-        />
-      ))}
+    <group ref={scaleRef} scale={[0.1, 0.1, 0.1]}>
+      <group position={[0, 0, 0.2]}>
+        {datas.map((data, i) => (
+          <FragmentPlane
+            key={i}
+            maxAmount={new THREE.Vector2(maxAmount.x, maxAmount.y)}
+            planeSize={planeSize}
+            zIndex={i * 10}
+            textures={textures}
+            noiseTexture={noiseTexture}
+            uvScale={uvScale}
+            data={data}
+            centered={centered}
+            setCentered={setCentered}
+            mouse={mouse}
+            size={size}
+          />
+        ))}
+      </group>
     </group>
   )
 }
