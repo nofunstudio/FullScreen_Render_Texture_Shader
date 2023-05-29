@@ -1,12 +1,13 @@
-import { useTexture, useVideoTexture, Plane } from '@react-three/drei'
+import { useTexture, useVideoTexture, Plane, Text3D, Center } from '@react-three/drei'
 import { useMemo, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { vertexShader, fragmentShader } from './PlaneShader'
+import { useScoreStore } from './ScoreStore'
 
 export const Planes = ({ centered, setCentered, ...props }) => {
-  const { size, mouse } = useThree() // access viewport size
+  const { size, mouse, set } = useThree() // access viewport size
   const urls = ['Cyberpad_x.mp4', 'JoyBlaster_3000.mp4', 'Megadome.mp4', 'Powerbase_Ultra.mp4']
   const textures = urls.map((url) => useVideoTexture(url))
   const noiseTexture = useTexture('noise.jpg')
@@ -62,24 +63,31 @@ export const Planes = ({ centered, setCentered, ...props }) => {
   }, [maxAmount, planeSize, textureAspect, videoHeight, videoWidth])
 
   useEffect(() => {
-    let tl = gsap.timeline({ repeat: -1 })
+    // If a previous animation is still running, kill it.
+    if (window.tl) {
+      window.tl.kill()
+    }
+
+    // Create a new timeline.
+    window.tl = gsap.timeline({ repeat: -1 })
+
     if (centered) {
       let rotationDuration = 12
       let scaleDuration = 0.5
       let scaleDelay = rotationDuration * 0.3 // Changed from 0.25 to 0.3 to delay the start of the scaling to 30% of the rotation
 
-      tl.to(scaleRef.current.rotation, {
+      window.tl.to(scaleRef.current.rotation, {
         y: Math.PI * -2,
         duration: rotationDuration,
         ease: 'power2.inOut',
       })
 
-      tl.to(
+      window.tl.to(
         scaleRef.current.scale,
         {
           x: 0.1,
           y: 0.1,
-          z: 0.25,
+          z: 0.35,
           duration: scaleDuration,
           ease: 'power2.inOut',
           yoyo: true,
@@ -88,47 +96,56 @@ export const Planes = ({ centered, setCentered, ...props }) => {
         scaleDelay,
       )
 
-      tl.set(
+      window.tl.set(
         scaleRef.current.scale,
         {
           x: 0.1,
           y: 0.1,
-          z: 0.1,
+          z: 0.2,
         },
         scaleDelay + scaleDuration * 2,
       )
     } else {
+      // Before starting a new animation, kill any ongoing animations.
+      gsap.killTweensOf(scaleRef.current.rotation)
+
       gsap.to(scaleRef.current.rotation, {
         y: 0,
         duration: 0.2,
         ease: 'power2.inOut',
       })
     }
+
+    // Clear the timeline when the component unmounts.
     return () => {
-      tl.kill()
+      window.tl.kill()
+      window.tl = null
     }
   }, [centered])
+
   return (
-    <group ref={scaleRef} scale={[0.1, 0.1, 0.1]}>
-      <group position={[0, 0, 0.2]}>
-        {datas.map((data, i) => (
-          <FragmentPlane
-            key={i}
-            maxAmount={new THREE.Vector2(maxAmount.x, maxAmount.y)}
-            planeSize={planeSize}
-            zIndex={i * 10}
-            textures={textures}
-            noiseTexture={noiseTexture}
-            uvScale={uvScale}
-            data={data}
-            centered={centered}
-            setCentered={setCentered}
-            mouse={mouse}
-            size={size}
-          />
-        ))}
+    <>
+      <group ref={scaleRef} scale={[0.1, 0.1, 0.2]} position={[0, 0, 15]}>
+        <group position={[0, 0, 0 - 100]}>
+          {datas.map((data, i) => (
+            <FragmentPlane
+              key={i}
+              maxAmount={new THREE.Vector2(maxAmount.x, maxAmount.y)}
+              planeSize={planeSize}
+              zIndex={i * 10}
+              textures={textures}
+              noiseTexture={noiseTexture}
+              uvScale={uvScale}
+              data={data}
+              centered={centered}
+              setCentered={setCentered}
+              mouse={mouse}
+              size={size}
+            />
+          ))}
+        </group>
       </group>
-    </group>
+    </>
   )
 }
 
@@ -144,17 +161,18 @@ const FragmentPlane = ({
   centered,
   setCentered,
   mouse,
+
   ...props
 }) => {
   const meshRef = useRef()
   const [isHovered, setIsHovered] = useState(false)
   const initialPos = useRef(data.position)
+  const { controller, setController, blueprint, setBlueprint, isMobileDevice } = useScoreStore()
 
   //const aspectRatio = new THREE.Vector2(size.width, size.height)
   const aspectRatio = 16 / 9
   const shaderRef = useRef()
   const [quad, setQuad] = useState(1)
-  const [quadStore, setQuadStore] = useState(1)
   const shader = {
     uniforms: {
       dispFactor: { value: 0 },
@@ -171,7 +189,7 @@ const FragmentPlane = ({
     vertexShader: vertexShader,
     fragmentShader: fragmentShader,
   }
-  const SCALE_DURATION = 0.9
+  const SCALE_DURATION = 1.2
   const DISPFACTOR_HOVERED = 0.5
   const DISPFACTOR_NOT_HOVERED = 0.9
   const DISPFACTOR_DURATION_HOVERED = 0.9
@@ -184,17 +202,20 @@ const FragmentPlane = ({
         x: centered ? initialPos.current.x : 0,
         y: centered ? initialPos.current.y : 0,
         z: centered ? initialPos.current.z : zIndex,
-        duration: centered ? SCALE_DURATION * 0.5 : SCALE_DURATION,
+        duration: centered ? SCALE_DURATION : SCALE_DURATION,
         onComplete: () => {
-          shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
+          shaderRef.current.uniforms.u_texture.value = textures[controller - 1]
         },
       },
       {
         x: centered ? 0 : initialPos.current.x,
         y: centered ? 0 : initialPos.current.y,
         z: centered ? zIndex : initialPos.current.z,
-        duration: centered ? SCALE_DURATION * 0.5 : SCALE_DURATION,
-        ease: centered ? 'power2.out' : 'elastic.out(1, .5)',
+        duration: centered ? SCALE_DURATION : SCALE_DURATION,
+        ease: centered ? 'power2.out' : 'elastic.out(.8, .6)',
+        onComplete: () => {
+          shaderRef.current.uniforms.u_texture.value = textures[controller - 1]
+        },
       },
     )
 
@@ -218,53 +239,68 @@ const FragmentPlane = ({
         duration: SCALE_DURATION,
       },
     )
-    gsap.to(shaderRef.current.uniforms.u_time, { value: 1.0, duration: 3.0 })
+    gsap.to(shaderRef.current.uniforms.u_time, { value: 1.0, duration: 2.0 })
     return () => {
       anim2.kill()
     }
   }, [isHovered])
-
-  useFrame(() => {
-    if (!centered) {
-      if (mouse.x < 0) {
-        if (mouse.y < 0) {
-          //1 top right
-          setQuad(1)
-        } else {
-          // 3 bottom left
-          setQuad(3)
-        }
-      } else {
-        if (mouse.y < 0) {
-          //2 top left
-          setQuad(2)
-        } else {
-          // 4 bottom right
-          setQuad(4)
-        }
-      }
-    }
-  }, [mouse])
+  //quadrant hover function fights with nav because of mouse position
+  // useFrame(() => {
+  //   if (!centered) {
+  //     if (mouse.x < 0) {
+  //       if (mouse.y < 0 && quad !== 1) {
+  //         //1 top right
+  //         setQuad(1)
+  //         setController(1)
+  //       } else if (mouse.y > 0 && quad !== 3) {
+  //         // 3 bottom left
+  //         setQuad(3)
+  //         setController(3)
+  //       }
+  //     } else {
+  //       if (mouse.y < 0 && quad !== 2) {
+  //         //2 top left
+  //         setQuad(2)
+  //         setController(2)
+  //       } else if (mouse.y > 0 && quad !== 4) {
+  //         // 4 bottom right
+  //         setQuad(4)
+  //         setController(4)
+  //       }
+  //     }
+  //   }
+  // })
 
   useEffect(() => {
-    //console.log(quad)
-    shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
-    if (!centered) {
-      gsap.fromTo(
-        shaderRef.current.uniforms.dispFactor,
-        {
-          value: 1.5,
-          duration: 1.9,
-          ease: 'power2.out',
-        },
-        {
-          value: 0.0,
-          duration: 1.5,
-          ease: 'power2.out',
-        },
-      )
-    }
+    shaderRef.current.uniforms.u_texture.value = textures[controller - 1]
+
+    gsap.fromTo(
+      shaderRef.current.uniforms.dispFactor,
+      {
+        value: 1.5,
+        duration: 1.9,
+        ease: 'power2.out',
+      },
+      {
+        value: 0.0,
+        duration: 1.5,
+        ease: 'power2.out',
+      },
+    )
   }, [quad])
+
+  useEffect(() => {
+    if (controller !== quad) {
+      setQuad(controller)
+      setController(controller)
+      if (centered) {
+        setCentered(!centered)
+        setTimeout(() => {
+          setCentered(centered)
+        }, 650)
+      }
+    }
+  }, [controller])
 
   return (
     <>
@@ -274,17 +310,18 @@ const FragmentPlane = ({
         position={data.position}
         onClick={(e) => {
           e.stopPropagation()
-          setQuadStore(quad)
           setCentered(!centered)
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
+          document.body.style.cursor = centered ? `zoom-in` : `zoom-out`
           if (!centered) {
             setIsHovered(true)
           }
         }}
         onPointerOut={(e) => {
           e.stopPropagation()
+          document.body.style.cursor = 'auto'
           if (!centered) {
             setIsHovered(false)
           }
