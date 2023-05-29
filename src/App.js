@@ -5,13 +5,14 @@ import * as THREE from 'three'
 import { gsap } from 'gsap'
 import VideoMask from './videoMaskComponents'
 import { Planes } from './Planes'
-import { renderTargetShader } from './RenderTagetShader'
+import { renderTargetShader } from './RenderTargetShaderPlain'
 
 import { VideoMaskShader } from './VideoMaskShader'
 
 export function RenderTexSetup() {
   const renderTexRef = useRef()
   const shaderRef = useRef()
+  const [centered, setCentered] = useState(true)
   const { viewport } = useThree()
   let x = 0
   let y = 0
@@ -32,24 +33,38 @@ export function RenderTexSetup() {
     shaderRef.current.scale = dSum / 8 + 4.1
 
     // Use the normalized distance to update progressDistortion
-    shaderRef.current.progressDistortion = (1 - dist) / 4 // Subtracting from 1 so that pro
-
+    if (!centered) {
+      //  shaderRef.current.progressDistortion = (1 - dist) / 4 // Subtracting from 1 so that pro
+    }
     shaderRef.current.time += delta * dSum + 0.01
   })
+
+  useEffect(() => {
+    if (centered) {
+      shaderRef.current.progressDistortion = 0.0
+      shaderRef.current.time = 0.0
+
+      // gsap.to(shaderRef.current, {
+      //   progressDistortion: 0.0,
+      //   duration: 0.05,
+      //   ease: 'power2.inOut',
+      // })
+    }
+  }, [centered])
 
   return (
     <>
       <RenderTexture ref={renderTexRef} attach="map" anisotropy={0}>
         <PerspectiveCamera makeDefault position={[0, 0, 100]} />
         <color attach="background" args={['black']} />
-        <OrbitControls />
+        {/* <OrbitControls /> */}
         <ambientLight intensity={0.5} />
         <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-          <group scale={1}>
+          <group scale={0.1}>
             <VideoMask position={[0, 0, -100]} scale={1} opacityProp={0.1} />
           </group>
         </Billboard>
-        <Planes />
+        <Planes centered={centered} setCentered={setCentered} />
         {/* <VideoMaskStack /> */}
       </RenderTexture>
       <mesh scale={[viewport.width, viewport.height, 1]}>

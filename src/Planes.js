@@ -5,8 +5,7 @@ import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { vertexShader, fragmentShader } from './PlaneShader'
 
-export const Planes = () => {
-  const [centered, setCentered] = useState(false)
+export const Planes = ({ centered, setCentered, ...props }) => {
   const { size, mouse } = useThree() // access viewport size
   const urls = ['Cyberpad_x.mp4', 'JoyBlaster_3000.mp4', 'Megadome.mp4', 'Powerbase_Ultra.mp4']
   const textures = urls.map((url) => useVideoTexture(url))
@@ -63,8 +62,8 @@ export const Planes = () => {
   }, [maxAmount, planeSize, textureAspect, videoHeight, videoWidth])
 
   useEffect(() => {
+    let tl = gsap.timeline({ repeat: -1 })
     if (centered) {
-      let tl = gsap.timeline({ repeat: -1 })
       let rotationDuration = 12
       let scaleDuration = 0.5
       let scaleDelay = rotationDuration * 0.3 // Changed from 0.25 to 0.3 to delay the start of the scaling to 30% of the rotation
@@ -98,6 +97,15 @@ export const Planes = () => {
         },
         scaleDelay + scaleDuration * 2,
       )
+    } else {
+      gsap.to(scaleRef.current.rotation, {
+        y: 0,
+        duration: 0.2,
+        ease: 'power2.inOut',
+      })
+    }
+    return () => {
+      tl.kill()
     }
   }, [centered])
   return (
@@ -168,24 +176,25 @@ const FragmentPlane = ({
   const DISPFACTOR_NOT_HOVERED = 0.9
   const DISPFACTOR_DURATION_HOVERED = 0.9
   const DISPFACTOR_DURATION_NOT_HOVERED = 0.5
-  // useState called Quad
 
   useEffect(() => {
-    shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
     const anim = gsap.fromTo(
       meshRef.current.position,
       {
         x: centered ? initialPos.current.x : 0,
         y: centered ? initialPos.current.y : 0,
         z: centered ? initialPos.current.z : zIndex,
-        duration: SCALE_DURATION,
+        duration: centered ? SCALE_DURATION * 0.5 : SCALE_DURATION,
+        onComplete: () => {
+          shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
+        },
       },
       {
         x: centered ? 0 : initialPos.current.x,
         y: centered ? 0 : initialPos.current.y,
         z: centered ? zIndex : initialPos.current.z,
-        duration: SCALE_DURATION,
-        onComplete: () => {},
+        duration: centered ? SCALE_DURATION * 0.5 : SCALE_DURATION,
+        ease: centered ? 'power2.out' : 'elastic.out(1, .5)',
       },
     )
 
@@ -239,6 +248,7 @@ const FragmentPlane = ({
 
   useEffect(() => {
     //console.log(quad)
+    shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
     if (!centered) {
       gsap.fromTo(
         shaderRef.current.uniforms.dispFactor,
@@ -246,9 +256,6 @@ const FragmentPlane = ({
           value: 1.5,
           duration: 1.9,
           ease: 'power2.out',
-          onProgress: () => {
-            shaderRef.current.uniforms.u_texture.value = textures[quad - 1]
-          },
         },
         {
           value: 0.0,

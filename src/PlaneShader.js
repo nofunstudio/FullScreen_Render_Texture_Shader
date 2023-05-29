@@ -70,7 +70,7 @@ void main() {
   vec4 texGrid = texture2D(u_texture, mixUV);
 
   if(u_transitionShader < 1.0){
-    if (length(tex.rgb) < 0.1) {
+    if (length(tex.rgb) < 0.005) {
         discard;
     } else {
         gl_FragColor = vec4(tex.rgb, 1.0);
