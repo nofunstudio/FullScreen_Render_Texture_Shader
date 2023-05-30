@@ -1,6 +1,6 @@
 import { Suspense, useRef, useEffect, useState, useMemo } from 'react'
 import { Canvas, extend, useFrame, createPortal, useThree } from '@react-three/fiber'
-import { Billboard, RenderTexture, PerspectiveCamera, OrbitControls } from '@react-three/drei'
+import { Billboard, RenderTexture, PerspectiveCamera, OrbitControls, Loader } from '@react-three/drei'
 import { useScoreStore } from './ScoreStore'
 import * as THREE from 'three'
 import { gsap } from 'gsap'
@@ -101,6 +101,7 @@ export default function App() {
           <RenderTexSetup />
         </Suspense>
       </Canvas>
+      <Loader />
     </>
   )
 }

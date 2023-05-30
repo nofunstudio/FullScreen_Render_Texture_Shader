@@ -9,7 +9,7 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: white;
+  background-color: rgb(0, 0, 0) !important;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -khtml-user-select: none;
@@ -17,6 +17,14 @@ body,
   -ms-user-select: none;
   user-select: none;
   overflow: hidden;
+}
+/* in your global.css or similar file */
+
+.zoomedOut {
+  cursor: url('https://xgjzloifyvgpbmyonaya.supabase.co/storage/v1/object/public/files/-t1_qjt34K/original'), pointer !important;
+}
+.zoomed {
+  cursor: url('https://xgjzloifyvgpbmyonaya.supabase.co/storage/v1/object/public/files/n4L9REuOyU/original'), pointer !important;
 }
 
 #root {

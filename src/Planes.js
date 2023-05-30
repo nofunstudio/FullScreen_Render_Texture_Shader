@@ -21,8 +21,8 @@ export const Planes = ({ centered, setCentered, ...props }) => {
   // Calculate the maximum number of planes that can fit in the viewport
   const maxAmount = useMemo(() => {
     return {
-      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 4),
-      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 4),
+      x: Math.min(Math.floor((size.width - gap.x) / (gap.x + textureAspect)), 3),
+      y: Math.min(Math.floor((size.height - gap.y) / gap.y), 3),
     }
   }, [size, gap, textureAspect])
 
@@ -126,7 +126,7 @@ export const Planes = ({ centered, setCentered, ...props }) => {
   return (
     <>
       <group ref={scaleRef} scale={[0.1, 0.1, 0.2]} position={[0, 0, 15]}>
-        <group position={[0, 0, 0 - 100]}>
+        <group position={[0, 0, 0 - 20]}>
           {datas.map((data, i) => (
             <FragmentPlane
               key={i}
@@ -314,14 +314,19 @@ const FragmentPlane = ({
         }}
         onPointerOver={(e) => {
           e.stopPropagation()
-          document.body.style.cursor = centered ? `zoom-in` : `zoom-out`
+
           if (!centered) {
+            document.body.className = 'zoomed'
+            document.body.classList.add('zoomed')
             setIsHovered(true)
+          } else {
+            document.body.className = 'zoomedOut'
+            document.body.classList.add('zoomedOut')
           }
         }}
         onPointerOut={(e) => {
+          document.body.className = ''
           e.stopPropagation()
-          document.body.style.cursor = 'auto'
           if (!centered) {
             setIsHovered(false)
           }
